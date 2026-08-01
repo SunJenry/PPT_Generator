@@ -517,6 +517,90 @@ git commit -m "feat: add Tavily search client"
 
 ---
 
+## Task 6: Unsplash Image Search
+
+**Files:**
+- Create: `PPT_Generator/image_search.py`
+- Test: `tests/test_image_search.py`
+
+**Interfaces:**
+- Consumes: `Settings`, `CostTracker`.
+- Produces: `ImageSearchClient.search(keyword: str) -> Optional[str]` returning a direct image URL.
+
+- [ ] **Step 1: Create `PPT_Generator/image_search.py`**
+
+```python
+from typing import Optional
+
+import httpx
+
+from PPT_Generator.config import settings
+from PPT_Generator.cost_tracker import CostTracker
+
+
+class ImageSearchClient:
+    def __init__(self, cost_tracker: CostTracker):
+        self.access_key = settings.unsplash_access_key
+        self.cost_tracker = cost_tracker
+
+    def search(self, keyword: str) -> Optional[str]:
+        if not self.access_key:
+            return None
+        url = "https://api.unsplash.com/search/photos"
+        params = {"query": keyword, "per_page": 1, "client_id": self.access_key}
+        with httpx.Client(timeout=20.0) as client:
+            response = client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if data["results"]:
+                self.cost_tracker.add_image_call()
+                return data["results"][0]["urls"]["regular"]
+            return None
+```
+
+- [ ] **Step 2: Write test `tests/test_image_search.py`**
+
+```python
+import httpx
+import pytest
+import respx
+
+from PPT_Generator.cost_tracker import CostTracker
+from PPT_Generator.image_search import ImageSearchClient
+
+
+@respx.mock
+def test_image_search_returns_url(monkeypatch):
+    monkeypatch.setenv("UNSPLASH_ACCESS_KEY", "test-key")
+    tracker = CostTracker()
+    client = ImageSearchClient(tracker)
+
+    route = respx.get("https://api.unsplash.com/search/photos").mock(
+        return_value=httpx.Response(200, json={"results": [{"urls": {"regular": "https://image.jpg"}}]})
+    )
+
+    url = client.search("university campus")
+    assert url == "https://image.jpg"
+    assert tracker.image_calls == 1
+```
+
+- [ ] **Step 3: Run test**
+
+```bash
+pytest tests/test_image_search.py -v
+```
+
+Expected: PASS
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add PPT_Generator/image_search.py tests/test_image_search.py
+git commit -m "feat: add Unsplash image search client"
+```
+
+---
+
 ## Task 7: Template System Foundation
 
 **Files:**
