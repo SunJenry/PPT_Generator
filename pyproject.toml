@@ -5,6 +5,13 @@ description = "" #TODO: Add a short description of your package
 authors = [{name = "Your Name", email = "your@email.com"}] #TODO: Add your name and email
 requires-python = ">=3.9"
 dynamic = ["optional-dependencies"]
+dependencies = [
+    "python-pptx>=1.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "openai>=1.0",
+    "httpx>=0.27",
+]
 
 [build-system]
 requires = ["setuptools", "wheel"]
