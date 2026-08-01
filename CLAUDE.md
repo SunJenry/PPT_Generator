@@ -50,32 +50,43 @@ pip install -e ".[dev]"
 ### Common Commands
 
 ```bash
-# Run the package
-python -m PPT_Generator
+# Generate a PPT from JSON input
+python -m PPT_Generator input.json output.pptx
 
 # Run all tests
 pytest
 
 # Run a specific test file
-pytest tests/test_PPT_Generator.py
+pytest tests/test_pipeline.py
 
 # Run a specific test function
-pytest tests/test_PPT_Generator.py::test_function_name
+pytest tests/test_pipeline.py::test_pipeline_runs_end_to_end
 
 # Install additional dev requirements
 pip install -r dev-requirements.txt
 ```
 
-## Architecture Notes
+See `examples/sample_input.json` for the input format. A sample end-to-end run (mocked external services) lives in `tests/test_integration.py`.
 
-The project is currently at the scaffolding stage. The package `PPT_Generator/` contains only placeholder entry points (`__init__.py`, `__main__.py`). The intended architecture, based on the assessment requirements, should separate concerns into at least:
+## Architecture
 
-1. **Content pipeline**: Research and planning given `(topic, brief, audience)` → structured outline with factual verification.
-2. **Template system**: Slide layouts and visual design system ensuring consistency across 25–30 slides.
-3. **Rendering engine**: Map structured content + templates → `.pptx` (e.g., via `python-pptx`).
-4. **CLI**: Single-command interface accepting JSON input and writing `.pptx` output.
+The package implements a five-stage pipeline, orchestrated by `Pipeline` (`PPT_Generator/pipeline.py`):
 
-External services (LLMs, image generation, search APIs) may be used. Any service usage must be tracked for cost verification during evaluation. Stability and retry logic are required because failures count toward both time and cost.
+1. **Planner** (`planner.py`): LLM generates a narrative outline (`Outline`) and fact queries from `(topic, brief, audience)`.
+2. **Researcher** (`researcher.py`): Parallel Tavily searches verify specific facts (deadlines, tuition, fees), producing `ResearchResult` items with confidence levels.
+3. **Content Generator** (`content_generator.py`): LLM fills the outline into a `Presentation` of 25–30 `Slide` objects, each choosing a constrained `layout_id`.
+4. **Validator** (`validator.py`): LLM checks page count (25–30), coherence, and layout fit; fixes invalid layout IDs locally.
+5. **Renderer** (`renderer.py`): Maps structured content to template layouts via `python-pptx`, optionally fetching images from Unsplash.
+
+Supporting modules:
+- `models.py`: Pydantic contracts (`Outline`, `Slide`, `Presentation`, `ResearchResult`) shared across stages.
+- `templates/`: Constrained template system — `registry.py` registers layouts, `styles.py` defines the design system (colors, fonts, slide dimensions), `layouts/` holds per-layout renderers. Currently implemented: `title`, `bullet_focus`; the remaining planned layouts (`section_divider`, `two_column`, `three_card`, `timeline`, `comparison_table`, `data_highlight`, `quote`, `closing`) are follow-up work.
+- `llm_client.py`: OpenAI-compatible client for 火山方舟 `kimi-k2.6` with tenacity retries and structured output parsing.
+- `search_client.py` / `image_search.py`: Tavily / Unsplash clients with retries.
+- `cost_tracker.py`: Accumulates LLM tokens, search/image call counts, and estimates RMB cost.
+- `cli.py`: `python -m PPT_Generator input.json output.pptx`.
+
+Configuration is environment-driven (`ARK_API_KEY`, `ARK_BASE_URL`, `ARK_MODEL`, `TAVILY_API_KEY`, optional `UNSPLASH_ACCESS_KEY`), loaded by `config.py`. External call failures are logged to stderr; the pipeline degrades gracefully (research/validation failures continue with empty or un-validated data).
 
 ## Reference Materials
 
