@@ -15,11 +15,4 @@ class Settings(BaseSettings):
     unsplash_access_key: str = ""
 
 
-class _LazySettings:
-    """Lazy proxy that defers Settings instantiation until first access."""
-
-    def __getattr__(self, name: str):
-        return getattr(Settings(), name)
-
-
-settings = _LazySettings()
+settings = Settings()
