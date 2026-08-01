@@ -37,9 +37,16 @@ class ContentGenerator:
             for r in research
         )
         layout_text = "\n".join(f"- {lid}" for lid in layouts.list_layouts())
+        sections_text = "\n".join(
+            f"- {s.section_title} ({s.pages} pages): {', '.join(s.key_points)}"
+            for s in outline.sections
+        )
         return f"""Topic: {topic}
 Audience: {audience}
 Narrative arc: {outline.narrative_arc}
+
+Planned sections:
+{sections_text}
 
 Available layouts:
 {layout_text}

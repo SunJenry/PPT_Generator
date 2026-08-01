@@ -26,11 +26,40 @@ class Pipeline:
         self.renderer = Renderer(self.templates, self.image_client)
 
     def run(self, topic: str, brief: str, audience: str, output_path: str) -> dict:
-        outline = self.planner.plan(topic, brief, audience)
-        research = self.researcher.research(outline)
-        presentation = self.content_generator.generate(topic, audience, outline, research, self.templates)
-        presentation = self.validator.validate(presentation, self.templates)
-        self.renderer.render(presentation, output_path)
+        try:
+            outline = self.planner.plan(topic, brief, audience)
+        except Exception:
+            import sys
+            print("Pipeline error: Planner stage failed.", file=sys.stderr)
+            raise
+
+        try:
+            research = self.researcher.research(outline)
+        except Exception:
+            import sys
+            print("Pipeline error: Researcher stage failed, continuing without research results.", file=sys.stderr)
+            research = []
+
+        try:
+            presentation = self.content_generator.generate(topic, audience, outline, research, self.templates)
+        except Exception:
+            import sys
+            print("Pipeline error: ContentGenerator stage failed.", file=sys.stderr)
+            raise
+
+        try:
+            presentation = self.validator.validate(presentation, self.templates)
+        except Exception:
+            import sys
+            print("Pipeline error: Validator stage failed, using un-validated presentation.", file=sys.stderr)
+
+        try:
+            self.renderer.render(presentation, output_path)
+        except Exception:
+            import sys
+            print("Pipeline error: Renderer stage failed.", file=sys.stderr)
+            raise
+
         report = self.cost_tracker.report()
         report["output_path"] = output_path
         report["total_pages"] = presentation.total_pages

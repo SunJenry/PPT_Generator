@@ -23,7 +23,12 @@ def main(argv=None):
         sys.exit(1)
 
     pipeline = Pipeline()
-    report = pipeline.run(topic, brief, audience, args.output)
+    try:
+        report = pipeline.run(topic, brief, audience, args.output)
+    except Exception as e:
+        print(f"Error: PPT generation failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
     print(f"Generated {report['total_pages']} slides to {report['output_path']}")
     print(f"Estimated cost: ¥{report['estimated_cost_rmb']}, elapsed: {report['elapsed_seconds']:.1f}s")
 

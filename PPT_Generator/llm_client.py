@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound=BaseModel)
 
-TRANSIENT_ERRORS = (APIConnectionError, APITimeoutError, RateLimitError, InternalServerError)
+TRANSIENT_ERRORS = (APIConnectionError, APITimeoutError, RateLimitError, InternalServerError, RuntimeError)
 
 
 class LLMClient:
@@ -52,4 +52,8 @@ class LLMClient:
             raise RuntimeError("LLM response missing usage information")
 
         self.cost_tracker.add_llm_call(completion.usage.prompt_tokens, completion.usage.completion_tokens)
+
+        if message.parsed is None:
+            raise RuntimeError("LLM did not produce valid structured output")
+
         return message.parsed

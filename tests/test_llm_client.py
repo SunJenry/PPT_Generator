@@ -66,6 +66,18 @@ def test_llm_client_missing_choices_raises_runtime_error(monkeypatch):
         client.chat("system", "user", FactQuery)
 
 
+def test_llm_client_parsed_none_raises_runtime_error(monkeypatch):
+    tracker = CostTracker()
+    settings = _mock_settings()
+    client = LLMClient(tracker, settings=settings)
+
+    mock_completion = _make_completion(refusal=None, parsed=None)
+    monkeypatch.setattr(client.client.beta.chat.completions, "parse", lambda **kwargs: mock_completion)
+
+    with pytest.raises(RuntimeError, match="did not produce valid structured output"):
+        client.chat("system", "user", FactQuery)
+
+
 def test_llm_client_missing_usage_raises_runtime_error(monkeypatch):
     tracker = CostTracker()
     settings = _mock_settings()

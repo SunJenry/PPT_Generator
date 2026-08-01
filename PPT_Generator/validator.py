@@ -1,7 +1,5 @@
-from typing import List
-
 from PPT_Generator.llm_client import LLMClient
-from PPT_Generator.models import Presentation, Slide
+from PPT_Generator.models import Presentation
 from PPT_Generator.templates.registry import TemplateRegistry
 
 
@@ -21,19 +19,17 @@ class Validator:
 
     def validate(self, presentation: Presentation, layouts: TemplateRegistry) -> Presentation:
         valid_layouts = set(layouts.list_layouts())
-        slides: List[Slide] = []
-        for i, slide in enumerate(presentation.slides, start=1):
+        cleaned = presentation.model_copy(deep=True)
+        for i, slide in enumerate(cleaned.slides, start=1):
             if slide.layout_id not in valid_layouts:
                 slide.layout_id = "bullet_focus"
             slide.page_number = i
-            slides.append(slide)
-        presentation.slides = slides
-        presentation.total_pages = len(slides)
+        cleaned.total_pages = len(cleaned.slides)
 
-        if 25 <= presentation.total_pages <= 30:
-            return presentation
+        if 25 <= cleaned.total_pages <= 30:
+            return cleaned
 
-        user_prompt = self._build_prompt(presentation)
+        user_prompt = self._build_prompt(cleaned)
         return self.llm_client.chat(VALIDATOR_SYSTEM, user_prompt, Presentation)
 
     def _build_prompt(self, presentation: Presentation) -> str:

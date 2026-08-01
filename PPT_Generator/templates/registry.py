@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 from PPT_Generator.templates.base import BaseLayout
 from PPT_Generator.templates.layouts.bullet_focus import BulletFocusLayout
@@ -18,5 +18,5 @@ class TemplateRegistry:
             raise KeyError(f"Unknown layout: {layout_id}")
         return self._layouts[layout_id]
 
-    def list_layouts(self) -> list[str]:
+    def list_layouts(self) -> List[str]:
         return list(self._layouts.keys())

@@ -17,5 +17,6 @@ def test_image_search_returns_url(monkeypatch):
     )
 
     url = client.search("university campus")
+    assert route.called
     assert url == "https://image.jpg"
     assert tracker.image_calls == 1
