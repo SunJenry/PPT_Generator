@@ -1,8 +1,4 @@
-# TODO: Update the main function to your needs or remove it.
-
-
-def main() -> None:
-    print("Start coding in Python today!")
+from PPT_Generator.cli import main
 
 
 if __name__ == "__main__":
