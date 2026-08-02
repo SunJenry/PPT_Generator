@@ -70,23 +70,22 @@ See `examples/sample_input.json` for the input format. A sample end-to-end run (
 
 ## Architecture
 
-The package implements a five-stage pipeline, orchestrated by `Pipeline` (`PPT_Generator/pipeline.py`):
+The package implements a four-stage pipeline, orchestrated by `Pipeline` (`PPT_Generator/pipeline.py`):
 
-1. **Planner** (`planner.py`): LLM generates a narrative outline (`Outline`) and fact queries from `(topic, brief, audience)`.
-2. **Researcher** (`researcher.py`): Parallel Tavily searches verify specific facts (deadlines, tuition, fees), producing `ResearchResult` items with confidence levels.
-3. **Content Generator** (`content_generator.py`): LLM fills the outline into a `Presentation` of 25–30 `Slide` objects, each choosing a constrained `layout_id`.
-4. **Validator** (`validator.py`): LLM checks page count (25–30), coherence, and layout fit; fixes invalid layout IDs locally.
-5. **Renderer** (`renderer.py`): Maps structured content to template layouts via `python-pptx`, optionally fetching images from Unsplash.
+1. **Planner** (`planner.py`): LLM generates a narrative outline (`Outline` with sections) from `(topic, brief, audience)`.
+2. **Content Generator** (`content_generator.py`): LLM fills the outline into a `Presentation` of 25–30 `Slide` objects; the call passes DeepSeek's built-in `web_search` tool so the model verifies factual claims itself and cites source URLs in `source_notes`.
+3. **Validator** (`validator.py`): LLM checks page count (25–30), coherence, and layout fit; fixes invalid layout IDs locally.
+4. **Renderer** (`renderer.py`): Maps structured content to template layouts via `python-pptx`, optionally fetching images from Unsplash.
 
 Supporting modules:
-- `models.py`: Pydantic contracts (`Outline`, `Slide`, `Presentation`, `ResearchResult`) shared across stages.
+- `models.py`: Pydantic contracts (`Outline`, `Slide`, `Presentation`) shared across stages.
 - `templates/`: Constrained template system — `registry.py` registers layouts, `styles.py` defines the design system (colors, fonts, slide dimensions), `layouts/` holds per-layout renderers. Currently implemented: `title`, `bullet_focus`; the remaining planned layouts (`section_divider`, `two_column`, `three_card`, `timeline`, `comparison_table`, `data_highlight`, `quote`, `closing`) are follow-up work.
-- `llm_client.py`: OpenAI-compatible client for 火山方舟 `kimi-k2.6` with tenacity retries and structured output parsing.
-- `search_client.py` / `image_search.py`: Tavily / Unsplash clients with retries.
-- `cost_tracker.py`: Accumulates LLM tokens, search/image call counts, and estimates RMB cost.
+- `llm_client.py`: OpenAI Responses API client for DeepSeek (`deepseek-v4-flash`) with tenacity retries, optional `web_search` tool, JSON Schema injection, and markdown-fence stripping.
+- `image_search.py`: Unsplash client with retries.
+- `cost_tracker.py`: Accumulates LLM tokens and image call counts, estimates RMB cost using DeepSeek v4-flash pricing.
 - `cli.py`: `python -m PPT_Generator input.json output.pptx`.
 
-Configuration is environment-driven (`ARK_API_KEY`, `ARK_BASE_URL`, `ARK_MODEL`, `TAVILY_API_KEY`, optional `UNSPLASH_ACCESS_KEY`), loaded by `config.py`. External call failures are logged to stderr; the pipeline degrades gracefully (research/validation failures continue with empty or un-validated data).
+Configuration is environment-driven (`DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, optional `UNSPLASH_ACCESS_KEY`), loaded by `config.py`. Legacy Ark/Tavily settings remain in `config.py` as unused fallbacks. External call failures are logged to stderr; the pipeline degrades gracefully (validation failures continue with un-validated data).
 
 ## Reference Materials
 

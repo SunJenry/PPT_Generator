@@ -60,6 +60,7 @@ class LLMClient:
             "model": self.model,
             "instructions": system + schema_hint,
             "input": user,
+            "text": {"format": {"type": "json_object"}},
         }
         if use_search:
             kwargs["tools"] = [{"type": "web_search"}]

@@ -19,11 +19,10 @@ Set the following environment variables (or create a `.env` file):
 
 | Variable | Required | Description |
 | :--- | :--- | :--- |
-| `ARK_API_KEY` | Yes | 火山方舟 (Volcengine Ark) API key for the LLM |
-| `TAVILY_API_KEY` | Yes | Tavily API key for fact-checking search |
+| `DEEPSEEK_API_KEY` | Yes | DeepSeek API key for the LLM |
 | `UNSPLASH_ACCESS_KEY` | No | Unsplash access key for image search (skips images if unset) |
 
-Optional overrides: `ARK_BASE_URL` (default: `https://ark.cn-beijing.volces.com/api/v3`), `ARK_MODEL` (default: `kimi-k2.6`).
+Optional overrides: `DEEPSEEK_BASE_URL` (default: `https://api.deepseek.com`), `DEEPSEEK_MODEL` (default: `deepseek-v4-flash`).
 
 ## Usage
 
@@ -45,25 +44,24 @@ See `examples/sample_input.json` for a complete example.
 
 ## How It Works
 
-The pipeline has five stages:
+The pipeline has four stages:
 
-1. **Planner** (LLM) — generates a narrative outline and a list of fact queries
-2. **Researcher** (Tavily) — parallel web search to verify specific facts (deadlines, tuition, visa fees, etc.)
-3. **Content Generator** (LLM) — fills the outline with per-slide structured content using constrained layouts
-4. **Validator** (LLM) — checks page count, coherence, and layout fit
-5. **Renderer** (`python-pptx`) — renders the structured content to a `.pptx` file, optionally fetching images from Unsplash
+1. **Planner** (LLM) — generates a narrative outline (sections + narrative arc) from `(topic, brief, audience)`
+2. **Content Generator** (LLM + built-in web search) — fills the outline with per-slide structured content; the model automatically invokes DeepSeek's built-in `web_search` tool to verify factual claims (deadlines, tuition, fees, policies), cites source URLs in `source_notes`, and explicitly marks unpublished information as "Not yet published"
+3. **Validator** (LLM) — checks page count (25–30), narrative coherence, and layout fit
+4. **Renderer** (`python-pptx`) — renders the structured content to a `.pptx` file, optionally fetching images from Unsplash
 
-Every LLM/search/image call is tracked by a cost tracker; a report with estimated cost and elapsed time is printed at the end.
+Every LLM/image call is tracked by a cost tracker; a report with estimated cost and elapsed time is printed at the end.
 
 ## Development
 
 ```bash
 # Run all tests
-pytest
+python -m pytest
 
 # Run a single test file
-pytest tests/test_pipeline.py
+python -m pytest tests/test_pipeline.py
 
 # Run a single test function
-pytest tests/test_pipeline.py::test_pipeline_runs_end_to_end
+python -m pytest tests/test_pipeline.py::test_pipeline_runs_end_to_end
 ```
