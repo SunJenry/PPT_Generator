@@ -1,3 +1,5 @@
+import json
+import re
 from typing import TYPE_CHECKING, Optional, Type, TypeVar
 
 from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, RateLimitError
@@ -12,6 +14,16 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound=BaseModel)
 
 TRANSIENT_ERRORS = (APIConnectionError, APITimeoutError, RateLimitError, InternalServerError, RuntimeError)
+
+_FENCE_RE = re.compile(r"^```[a-zA-Z]*\s*|\s*```$")
+
+
+def _extract_json(content: str) -> str:
+    """Extract a JSON payload from LLM output, stripping Markdown code fences if present."""
+    text = content.strip()
+    if text.startswith("```"):
+        text = _FENCE_RE.sub("", text).strip()
+    return text
 
 
 class LLMClient:
@@ -32,13 +44,13 @@ class LLMClient:
         reraise=True,
     )
     def chat(self, system: str, user: str, response_format: Type[T]) -> T:
-        completion = self.client.beta.chat.completions.parse(
+        completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            response_format=response_format,
+            response_format={"type": "json_object"},
         )
 
         if not completion.choices:
@@ -53,7 +65,11 @@ class LLMClient:
 
         self.cost_tracker.add_llm_call(completion.usage.prompt_tokens, completion.usage.completion_tokens)
 
-        if message.parsed is None:
+        if not message.content:
             raise RuntimeError("LLM did not produce valid structured output")
 
-        return message.parsed
+        try:
+            data = json.loads(_extract_json(message.content))
+            return response_format.model_validate(data)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise RuntimeError(f"LLM did not produce valid structured output: {exc}") from exc
