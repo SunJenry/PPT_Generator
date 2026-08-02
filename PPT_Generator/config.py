@@ -8,10 +8,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    ark_api_key: str
+    # Legacy Ark (kimi) configuration, kept as fallback
+    ark_api_key: str = ""
     ark_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
     ark_model: str = "kimi-k2.6"
-    tavily_api_key: str
+    tavily_api_key: str = ""
+
+    # DeepSeek configuration (primary)
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-v4-flash"
+
     unsplash_access_key: str = ""
 
 

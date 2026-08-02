@@ -9,20 +9,18 @@ from PPT_Generator.models import FactQuery
 
 def _mock_settings():
     settings = MagicMock()
-    settings.ark_api_key = "test-key"
-    settings.ark_base_url = "https://test.example.com/api/v3"
-    settings.ark_model = "test-model"
+    settings.deepseek_api_key = "test-key"
+    settings.deepseek_base_url = "https://test.example.com"
+    settings.deepseek_model = "deepseek-v4-flash"
     return settings
 
 
-def _make_completion(refusal=None, content=None, prompt_tokens=10, completion_tokens=5):
+def _make_completion(output_text=None, input_tokens=10, output_tokens=5):
     completion = MagicMock()
-    completion.choices = [MagicMock()]
-    completion.choices[0].message.refusal = refusal
-    completion.choices[0].message.content = content
+    completion.output_text = output_text
     completion.usage = MagicMock()
-    completion.usage.prompt_tokens = prompt_tokens
-    completion.usage.completion_tokens = completion_tokens
+    completion.usage.input_tokens = input_tokens
+    completion.usage.output_tokens = output_tokens
     return completion
 
 
@@ -37,8 +35,8 @@ def _make_client(mock_openai_class):
 def test_llm_client_parses_plain_json():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
-        mock_client.chat.completions.create.return_value = _make_completion(
-            content='{"entity": "Test", "attributes": ["a"]}'
+        mock_client.responses.create.return_value = _make_completion(
+            output_text='{"entity": "Test", "attributes": ["a"]}'
         )
 
         result = client.chat("system", "user", FactQuery)
@@ -49,19 +47,43 @@ def test_llm_client_parses_plain_json():
 def test_llm_client_parses_json_with_markdown_fence():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
-        mock_client.chat.completions.create.return_value = _make_completion(
-            content='```json\n{"entity": "Test", "attributes": ["a"]}\n```'
+        mock_client.responses.create.return_value = _make_completion(
+            output_text='```json\n{"entity": "Test", "attributes": ["a"]}\n```'
         )
 
         result = client.chat("system", "user", FactQuery)
         assert result.entity == "Test"
 
 
+def test_llm_client_passes_web_search_tool_when_requested():
+    with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
+        client, mock_client = _make_client(mock_openai_class)
+        mock_client.responses.create.return_value = _make_completion(
+            output_text='{"entity": "Test", "attributes": ["a"]}'
+        )
+
+        client.chat("system", "user", FactQuery, use_search=True)
+        call_kwargs = mock_client.responses.create.call_args.kwargs
+        assert call_kwargs["tools"] == [{"type": "web_search"}]
+
+
+def test_llm_client_omits_web_search_tool_by_default():
+    with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
+        client, mock_client = _make_client(mock_openai_class)
+        mock_client.responses.create.return_value = _make_completion(
+            output_text='{"entity": "Test", "attributes": ["a"]}'
+        )
+
+        client.chat("system", "user", FactQuery)
+        call_kwargs = mock_client.responses.create.call_args.kwargs
+        assert "tools" not in call_kwargs
+
+
 def test_llm_client_records_usage():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
-        mock_client.chat.completions.create.return_value = _make_completion(
-            content='{"entity": "Test", "attributes": ["a"]}', prompt_tokens=10, completion_tokens=5
+        mock_client.responses.create.return_value = _make_completion(
+            output_text='{"entity": "Test", "attributes": ["a"]}', input_tokens=10, output_tokens=5
         )
 
         client.chat("system", "user", FactQuery)
@@ -69,31 +91,19 @@ def test_llm_client_records_usage():
         assert client.cost_tracker.llm_completion_tokens == 5
 
 
-def test_llm_client_refusal_raises_runtime_error():
-    with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
-        client, mock_client = _make_client(mock_openai_class)
-        mock_client.chat.completions.create.return_value = _make_completion(refusal="I cannot answer this")
-
-        with pytest.raises(RuntimeError, match="Model refused"):
-            client.chat("system", "user", FactQuery)
-
-
-def test_llm_client_missing_choices_raises_runtime_error():
-    with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
-        client, mock_client = _make_client(mock_openai_class)
-        mock_completion = MagicMock()
-        mock_completion.choices = []
-        mock_completion.usage = MagicMock()
-        mock_client.chat.completions.create.return_value = mock_completion
-
-        with pytest.raises(RuntimeError, match="no choices"):
-            client.chat("system", "user", FactQuery)
-
-
 def test_llm_client_invalid_json_raises_runtime_error():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
-        mock_client.chat.completions.create.return_value = _make_completion(content="not json at all")
+        mock_client.responses.create.return_value = _make_completion(output_text="not json at all")
+
+        with pytest.raises(RuntimeError, match="did not produce valid structured output"):
+            client.chat("system", "user", FactQuery)
+
+
+def test_llm_client_empty_output_raises_runtime_error():
+    with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
+        client, mock_client = _make_client(mock_openai_class)
+        mock_client.responses.create.return_value = _make_completion(output_text="")
 
         with pytest.raises(RuntimeError, match="did not produce valid structured output"):
             client.chat("system", "user", FactQuery)
@@ -103,11 +113,9 @@ def test_llm_client_missing_usage_raises_runtime_error():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_completion = MagicMock()
-        mock_completion.choices = [MagicMock()]
-        mock_completion.choices[0].message.refusal = None
-        mock_completion.choices[0].message.content = '{"entity": "Test", "attributes": ["a"]}'
+        mock_completion.output_text = '{"entity": "Test", "attributes": ["a"]}'
         mock_completion.usage = None
-        mock_client.chat.completions.create.return_value = mock_completion
+        mock_client.responses.create.return_value = mock_completion
 
         with pytest.raises(RuntimeError, match="missing usage"):
             client.chat("system", "user", FactQuery)
@@ -125,9 +133,9 @@ def test_llm_client_retries_on_transient_error_then_succeeds():
                 from openai import APIConnectionError
 
                 raise APIConnectionError(message="connection failed", request=MagicMock())
-            return _make_completion(content='{"entity": "Retry", "attributes": ["b"]}')
+            return _make_completion(output_text='{"entity": "Retry", "attributes": ["b"]}')
 
-        mock_client.chat.completions.create.side_effect = flaky_create
+        mock_client.responses.create.side_effect = flaky_create
 
         result = client.chat("system", "user", FactQuery)
         assert result.entity == "Retry"

@@ -33,8 +33,8 @@ class LLMClient:
 
             settings = default_settings
 
-        self.client = OpenAI(api_key=settings.ark_api_key, base_url=settings.ark_base_url)
-        self.model = settings.ark_model
+        self.client = OpenAI(api_key=settings.deepseek_api_key, base_url=settings.deepseek_base_url)
+        self.model = settings.deepseek_model
         self.cost_tracker = cost_tracker
 
     @retry(
@@ -43,33 +43,39 @@ class LLMClient:
         retry=retry_if_exception_type(TRANSIENT_ERRORS),
         reraise=True,
     )
-    def chat(self, system: str, user: str, response_format: Type[T]) -> T:
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            response_format={"type": "json_object"},
+    def chat(
+        self,
+        system: str,
+        user: str,
+        response_format: Type[T],
+        use_search: bool = False,
+    ) -> T:
+        schema_hint = (
+            "\n\nOutput must be a single JSON object (no markdown fences) "
+            "matching exactly this JSON Schema:\n"
+            + json.dumps(response_format.model_json_schema(), ensure_ascii=False)
         )
 
-        if not completion.choices:
-            raise RuntimeError("LLM response contained no choices")
+        kwargs: dict = {
+            "model": self.model,
+            "instructions": system + schema_hint,
+            "input": user,
+        }
+        if use_search:
+            kwargs["tools"] = [{"type": "web_search"}]
 
-        message = completion.choices[0].message
-        if message.refusal:
-            raise RuntimeError(f"Model refused: {message.refusal}")
+        completion = self.client.responses.create(**kwargs)
 
         if completion.usage is None:
             raise RuntimeError("LLM response missing usage information")
 
-        self.cost_tracker.add_llm_call(completion.usage.prompt_tokens, completion.usage.completion_tokens)
+        self.cost_tracker.add_llm_call(completion.usage.input_tokens, completion.usage.output_tokens)
 
-        if not message.content:
+        if not completion.output_text:
             raise RuntimeError("LLM did not produce valid structured output")
 
         try:
-            data = json.loads(_extract_json(message.content))
+            data = json.loads(_extract_json(completion.output_text))
             return response_format.model_validate(data)
         except (json.JSONDecodeError, ValueError) as exc:
             raise RuntimeError(f"LLM did not produce valid structured output: {exc}") from exc
