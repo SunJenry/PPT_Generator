@@ -1,36 +1,87 @@
 # PPT Generator
 
-A single-command PPT generator: JSON in, `.pptx` out. Given a topic, brief, and target audience, it produces a cohesive 25–30 slide presentation with a clear narrative arc.
+单条命令吃 JSON 吐 `.pptx`：给定主题、简介和目标受众，自动生成一套 25–30 页、叙事连贯、风格统一的演示文稿。
 
-## Installation
+## How I Do It
+
+整个项目的开发过程由 AI 驱动，人工主要负责审阅、决策和确认方向。以下是实际的工作流程：
+
+### 1. 把 PDF 扔给 AI，跑通"Hello World"
+
+把考题 PDF 直接丢给 AI，AI 给出大致的实现方案和预期产出。这一步的核心目标是**确认技术路线可行**——模型能不能跑通、API 能不能调、核心链路（JSON 进 → .pptx 出）能不能走完。跑通一个最简版本后，再在此基础上迭代。
+
+### 2. PDF 转 Markdown，让 AI 充分理解需求
+
+新建 Python 脚本，将考题 PDF 转换为 Markdown 格式。PDF 对 AI 来说不如纯文本好解析，转成 Markdown 后 AI 能更准确地理解评分标准、约束条件和细节要求，避免遗漏关键信息。
+
+### 3. AI 给出完整实现方案
+
+AI 在理解需求后，输出详细的实现方案，包括架构设计、模块划分、数据流和各阶段的技术选型。
+
+### 4. 审阅方案，确认需要修改的地方
+
+人工审阅 AI 的方案，对照考题要求逐项确认。这一步会识别出方案中的不足——比如布局不够丰富、事实核查策略不够可靠、管道阶段过多等。
+
+### 5. 迭代优化，收敛到最终方案
+
+重复步骤 4，每轮聚焦一个或一组问题，小步快跑。每次修改后重新审视整体，直到方案在质量、速度、成本和通用性之间达到平衡。最终收敛到当前的四阶段管道 + 10 种布局 + DeepSeek 内置 web_search 的架构。
+
+---
+
+## 目录
+
+- [How I Do It](#how-i-do-it)
+- [安装与运行](#安装与运行)
+- [模型、工具与外部服务](#模型工具与外部服务)
+- [主要技术方案](#主要技术方案)
+- [探索过程与决策](#探索过程与决策)
+- [已知问题与后续优化](#已知问题与后续优化)
+
+## 安装与运行
+
+### 环境要求
+
+- Python ≥ 3.9
+- 建议使用虚拟环境
+
+### 安装
 
 ```bash
-# Create and activate a virtual environment
+cd PPT_Generator
 python -m venv .venv
 source .venv/bin/activate
-
-# Install the package in editable mode with dev dependencies
 pip install -e ".[dev]"
 ```
 
-## Configuration
+### 配置
 
-Set the following environment variables (or create a `.env` file):
+在项目根目录创建 `.env` 文件：
 
-| Variable | Required | Description |
-| :--- | :--- | :--- |
-| `DEEPSEEK_API_KEY` | Yes | DeepSeek API key for the LLM |
-| `UNSPLASH_ACCESS_KEY` | No | Unsplash access key for image search (skips images if unset) |
-
-Optional overrides: `DEEPSEEK_BASE_URL` (default: `https://api.deepseek.com`), `DEEPSEEK_MODEL` (default: `deepseek-v4-flash`).
-
-## Usage
-
-```bash
-python -m PPT_Generator input.json output.pptx
+```env
+DEEPSEEK_API_KEY=sk-your-key-here
 ```
 
-Input format:
+| 环境变量 | 必填 | 说明 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | 是 | DeepSeek API 密钥 |
+| `DEEPSEEK_BASE_URL` | 否 | API 地址（默认 `https://api.deepseek.com`） |
+| `DEEPSEEK_MODEL` | 否 | 模型名称（默认 `deepseek-v4-flash`） |
+| `UNSPLASH_ACCESS_KEY` | 否 | Unsplash 图片搜索（不配则跳过图片） |
+
+### 运行
+
+```bash
+# 单条命令生成 PPT
+python -m PPT_Generator input.json output.pptx
+
+# 示例：使用开发集 demo1
+python -m PPT_Generator examples/demo1.json demo1.pptx
+
+# 预览设计模板
+python -m PPT_Generator.template_builder assets/template.pptx
+```
+
+### 输入格式
 
 ```json
 {
@@ -40,28 +91,168 @@ Input format:
 }
 ```
 
-See `examples/sample_input.json` for a complete example.
+`examples/` 目录下有 5 个开发集示例。
 
-## How It Works
-
-The pipeline has four stages:
-
-1. **Planner** (LLM) — generates a narrative outline (sections + narrative arc) from `(topic, brief, audience)`
-2. **Content Generator** (LLM + built-in web search) — fills the outline with per-slide structured content; the model automatically invokes DeepSeek's built-in `web_search` tool to verify factual claims (deadlines, tuition, fees, policies), cites source URLs in `source_notes`, and explicitly marks unpublished information as "Not yet published"
-3. **Validator** (LLM) — checks page count (25–30), narrative coherence, and layout fit
-4. **Renderer** (`python-pptx`) — renders the structured content to a `.pptx` file, optionally fetching images from Unsplash
-
-Every LLM/image call is tracked by a cost tracker; a report with estimated cost and elapsed time is printed at the end.
-
-## Development
+### 运行测试
 
 ```bash
-# Run all tests
-python -m pytest
-
-# Run a single test file
-python -m pytest tests/test_pipeline.py
-
-# Run a single test function
-python -m pytest tests/test_pipeline.py::test_pipeline_runs_end_to_end
+pytest                          # 全部测试
+pytest tests/test_pipeline.py   # 单个文件
 ```
+
+---
+
+## 模型、工具与外部服务
+
+| 组件 | 技术选型 | 用途 |
+|---|---|---|
+| **LLM** | DeepSeek v4-flash（Responses API） | 内容规划、大纲生成、幻灯片内容创作 |
+| **事实核查** | DeepSeek 内置 `web_search` 工具 | LLM 在生成内容时自动搜索并核验事实（截止日期、学费、政策等），标注来源 URL |
+| **PPT 渲染** | `python-pptx` | 将结构化内容渲染为 `.pptx` 文件 |
+| **图片素材** | Unsplash API（可选） | 根据关键词搜索并嵌入配图 |
+| **结构化输出** | Pydantic v2 | 阶段间数据契约（`Outline` → `Presentation` → `.pptx`） |
+| **重试机制** | Tenacity（指数退避） | API 调用失败自动重试，最多 3 次 |
+| **成本追踪** | 自建 `CostTracker` | 累计 token 消耗和图片调用次数，按 DeepSeek 定价估算成本 |
+
+### 为什么选择 DeepSeek
+
+1. **内置 web_search**：无需单独集成搜索 API（如 Tavily），减少外部依赖和调用次数
+2. **极低成本**：¥1/百万输入 token + ¥2/百万输出 token，单页成本通常 < ¥0.05
+3. **OpenAI 兼容 SDK**：`pip install openai` 即可，零迁移成本
+
+---
+
+## 主要技术方案
+
+### 四阶段管道
+
+```
+JSON 输入
+  │
+  ├─ [1] Planner ──────────── LLM 生成叙事大纲（Outline）
+  │                          输出：章节 + 每章页数 + 关键点
+  │
+  ├─ [2] Content Generator ── LLM + web_search 填充幻灯片内容
+  │                          输出：25-30 张 Slide（含标题、要点、
+  │                               表格、时间线、引用等）
+  │                          自动搜索并核验事实，标注来源
+  │
+  ├─ [3] Validator ────────── 检查页数（25-30）、布局合法性、连贯性
+  │                          修复非法 layout_id
+  │
+  └─ [4] Renderer ─────────── python-pptx 渲染为 .pptx
+                              可选 Unsplash 配图
+```
+
+### 模板与设计系统
+
+**10 种商务布局**，按内容类型自动选择：
+
+| layout_id | 用途 | 典型场景 |
+|---|---|---|
+| `title_slide` | 封面 | 第 1 页 |
+| `section_divider` | 章节分隔 | 每 5-8 页插入，标记新章节 |
+| `content` | 标准内容 | 3-5 条项目符号，约占 40% |
+| `two_column` | 双栏对比 | 国家/学校/方案对比 |
+| `three_card` | 三卡片 | 并列要点、特性或建议 |
+| `timeline` | 时间线 | 申请时间线、里程碑 |
+| `comparison_table` | 对比表格 | 多维数据对比（学费、时长、要求） |
+| `data_highlight` | 数据高亮 | 关键数字（总费用、录取率） |
+| `quote` | 引用/金句 | 1-2 处重要建议或结论 |
+| `closing` | 结束页 | 最后一页 |
+
+**设计特性**：
+- 深蓝 + 暖金配色，统一排版
+- 每页页眉（章节标题 + 金色装饰线）+ 页脚（页码）
+- **动态标题高度**：根据标题文字长度自动调整标题区域高度，多行标题不会与正文重叠
+- 安全区域约束：所有内容限制在 `1.0"-11.0" × 0.3"-6.85"` 范围内
+- 模板可视化：`python -m PPT_Generator.template_builder` 生成 `assets/template.pptx` 供预览
+
+### 内容质量保障
+
+- **事实核查**：DeepSeek 内置 `web_search` 在生成时自动搜索，不依赖模型训练数据的记忆
+- **来源标注**：每张幻灯片的 `source_notes` 字段记录引用来源
+- **未发布标记**：尚未公布的信息（如未来年份的截止日期）必须标注"尚未公布"，禁止基于往年猜测
+- **反注水**：Prompt 明确禁止拆句凑页数、重复内容、放大标题
+
+### 成本与速度
+
+- DeepSeek v4-flash 定价：输入 ¥1/M tokens，输出 ¥2/M tokens
+- web_search 无额外费用（内置功能）
+- 单页平均耗时 < 30s，单页成本 < ¥0.10
+
+---
+
+## 探索过程与决策
+
+### 1. 模板策略：受限模板 vs 自由式布局
+
+**尝试方向**：最初考虑让 LLM 自由生成 HTML/CSS 模板，或用 Playwright 渲染为图片再嵌入 PPT。
+
+**为什么放弃**：自由式布局缺乏约束，经常出现元素越界、中文乱码和字体问题。PPT 的本质是结构化排版，而非页面渲染。
+
+**最终方案**：约束模板系统。定义 10 种布局类型，LLM 只需选择 layout_id 并填充结构化字段，渲染器负责精确的版式实现。这保证了不出界、无乱码。
+
+### 2. 事实核查：外部搜索 vs 内置搜索
+
+**尝试方向**：最初使用 Tavily API 作为独立搜索客户端，在 Planner 阶段生成搜索查询，由 Researcher 阶段执行搜索，再将搜索结果注入 ContentGenerator 的 prompt。
+
+**为什么放弃**：5 阶段管道过于复杂，且 Tavily 搜索结果不总是与 LLM 的 content 需求对齐（搜索结果的格式和相关性不可控）。额外 API 调用增加了成本和失败点。
+
+**最终方案**：迁移到 DeepSeek 的 Responses API + 内置 `web_search` 工具。LLM 自己决定何时搜索、搜索什么，结果直接融入生成过程。管道从 5 阶段简化为 4 阶段（删除独立的 Researcher），减少了 1 次 LLM 调用。
+
+### 3. LLM 选型
+
+**尝试方向**：最初使用字节 Ark 平台的 Kimi-k2.6 模型。
+
+**为什么切换**：Kimi-k2.6 不支持内置 web_search，需要外部 Tavily 集成。DeepSeek 的 Responses API 原生支持 web_search，且成本更低、SDK 更简洁（标准 OpenAI client）。
+
+### 4. PPT 模板生成策略
+
+**尝试方向**：python-pptx 通过 Slide Master 创建标准模板（.potx）。
+
+**为什么放弃**：python-pptx 不支持通过 API 创建自定义幻灯片母版，只能使用内置的空白布局。
+
+**最终方案**：设计系统集中化 — 所有视觉参数定义在 `design.py` 中，渲染器和模板生成器共享同一套代码。另提供 `template_builder.py` 生成可视化参考模板供用户预览。
+
+### 5. 结构化输出策略
+
+**尝试方向**：使用 OpenAI 的 `json_schema` strict format。
+
+**为什么放弃**：DeepSeek 的 `json_schema` 格式与 `web_search` 工具不兼容，模型在这些条件下会忽略结构化输出要求。
+
+**最终方案**：使用 `json_object` 格式 + 手动注入 JSON Schema 到系统 prompt + 后处理去除 Markdown 代码围栏。经实测稳定可用。
+
+---
+
+## 已知问题与后续优化
+
+### 已知问题
+
+1. **PPT 审美仍有提升空间**：当前模板系统（深蓝 + 暖金配色、10 种布局）具备基本商务感，但距离"可以直接交付给客户"的专业水准仍有差距。具体表现：(a) 封面页设计感不足，缺少视觉冲击力；(b) 装饰元素较为单一（仅金线 + 圆形），缺乏层次感；(c) 纯文本页面的版式变化不够丰富，长文本页阅读体验欠佳；(d) 缺少高质量的配图和图标辅助表达。
+
+2. **填充数据不够翔实**：LLM 通过 `web_search` 获取的事实信息有时过于简略，部分 slide 仅罗列 2-3 条浅层要点，缺少深度分析和具体数据支撑。具体表现：(a) 对比表格的维度不够丰富（往往只有 3-4 列）；(b) `data_highlight` 页面缺乏上下文解读；(c) 部分搜索结果未被充分利用，source_notes 标注不够完整。
+
+3. **LLM 输出不稳定**：`json_object` 模式下，偶尔（约 10-15% 的调用）模型返回非 JSON 的自然语言文本，导致 ContentGenerator 阶段失败。目前通过 tenacity 重试缓解，但未根本解决。根因是 `web_search` 工具激活时模型倾向于对话式输出。
+
+4. **图片搜索未充分利用**：Unsplash 集成已实现，但当前 demo 未配置 API key，所有配图为空。配图可以显著提升美观度（见问题 1）。
+
+5. **布局缺少图标和图表**：10 种布局主要是文本排版，缺少 SVG 图标、数据图表（柱状图、饼图）等视觉元素。`data_highlight` 只展示大数字，未渲染为真正的图表。
+
+6. **模板仅 10 种布局**：极端复杂的对比场景可能需要更多布局变体。
+
+7. **英文支持未验证**：设计系统使用 Microsoft YaHei 字体（中文字体），英文场景下的排版未充分测试。
+
+### 后续优化方向
+
+| 优先级 | 方向 | 预期效果 |
+|---|---|---|
+| 高 | 丰富数据填充策略：增加每页最低要点数约束、表格最低列数要求、数据上下文解读 prompt 指令 | 提升信息密度和分析深度 |
+| 高 | 增强封面和视觉层次：多层装饰几何图形、渐变背景、多色装饰线、素材图标库 | 缩小与专业交付件的审美差距 |
+| 高 | 增加 JSON 输出的容错恢复（从非 JSON 文本中提取 JSON 片段） | 将 ContentGenerator 失败率降至 < 2% |
+| 高 | 集成图表渲染（python-pptx chart 或 matplotlib） | 数据展示更专业 |
+| 中 | 集成 Unsplash 配图并优化关键词生成策略 | 显著提升美观度 |
+| 中 | 扩展至 12-14 种布局（流程图、SWOT、甘特图等） | 覆盖更多内容类型 |
+| 中 | 第二套配色主题（如浅色学术风、绿/灰环保风） | 支持风格切换 |
+| 低 | 支持 `.pptx` 母版加载（手动创建的 PowerPoint 模板） | 非技术人员可自定义设计 |
+| 低 | 图片搜索自动优化关键词（LLM 根据上下文生成搜索词） | 提高图片相关性 |
