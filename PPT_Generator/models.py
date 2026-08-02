@@ -1,19 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
-
-
-class FactQuery(BaseModel):
-    entity: str
-    attributes: List[str]
-
-
-class ResearchResult(BaseModel):
-    entity: str
-    attribute: str
-    value: str
-    source_url: str
-    confidence: str = Field(pattern=r"^(high|medium|low)$")
+from pydantic import BaseModel
 
 
 class SectionPlan(BaseModel):
@@ -25,7 +12,6 @@ class SectionPlan(BaseModel):
 class Outline(BaseModel):
     narrative_arc: str
     sections: List[SectionPlan]
-    fact_queries: List[FactQuery]
 
 
 class Slide(BaseModel):

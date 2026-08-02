@@ -1,11 +1,12 @@
-from PPT_Generator.models import FactQuery, Outline, Presentation, ResearchResult, SectionPlan, Slide
+from PPT_Generator.models import Outline, Presentation, SectionPlan, Slide
 
 
-def test_research_result_confidence_validation():
-    valid = ResearchResult(
-        entity="Imperial", attribute="tuition", value="£35k", source_url="https://example.com", confidence="high"
+def test_outline_requires_sections():
+    outline = Outline(
+        narrative_arc="arc",
+        sections=[SectionPlan(section_title="Intro", pages=5, key_points=["a"])],
     )
-    assert valid.confidence == "high"
+    assert outline.sections[0].section_title == "Intro"
 
 
 def test_presentation_serialization():
