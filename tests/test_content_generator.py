@@ -1,10 +1,14 @@
 from PPT_Generator.content_generator import ContentGenerator
-from PPT_Generator.models import Outline, Presentation, ResearchResult, SectionPlan, Slide
+from PPT_Generator.models import Outline, Presentation, SectionPlan, Slide
 from PPT_Generator.templates.registry import TemplateRegistry
 
 
 class FakeLLMClient:
-    def chat(self, system, user, response_format):
+    def __init__(self):
+        self.use_search_calls = []
+
+    def chat(self, system, user, response_format, use_search=False):
+        self.use_search_calls.append(use_search)
         return Presentation(
             topic="T",
             audience="A",
@@ -19,10 +23,20 @@ def test_content_generator_returns_presentation():
     outline = Outline(
         narrative_arc="arc",
         sections=[SectionPlan(section_title="Intro", pages=1, key_points=["a"])],
-        fact_queries=[],
     )
-    research = [ResearchResult(entity="E", attribute="a", value="v", source_url="https://example.com", confidence="high")]
     layouts = TemplateRegistry()
     generator = ContentGenerator(FakeLLMClient())
-    pres = generator.generate("T", "A", outline, research, layouts)
+    pres = generator.generate("T", "A", outline, layouts)
     assert pres.slides[0].title == "Hello"
+
+
+def test_content_generator_uses_web_search():
+    outline = Outline(
+        narrative_arc="arc",
+        sections=[SectionPlan(section_title="Intro", pages=1, key_points=["a"])],
+    )
+    layouts = TemplateRegistry()
+    llm_client = FakeLLMClient()
+    generator = ContentGenerator(llm_client)
+    generator.generate("T", "A", outline, layouts)
+    assert llm_client.use_search_calls == [True]

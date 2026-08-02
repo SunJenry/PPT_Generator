@@ -1,19 +1,18 @@
-from typing import List
-
 from PPT_Generator.llm_client import LLMClient
-from PPT_Generator.models import Outline, Presentation, ResearchResult
+from PPT_Generator.models import Outline, Presentation
 from PPT_Generator.templates.registry import TemplateRegistry
 
 
-GENERATOR_SYSTEM = """You are a presentation content generator. Given an outline, research results, and available slide layouts, produce 25-30 slides.
+GENERATOR_SYSTEM = """You are a presentation content generator. Given an outline and available slide layouts, produce 25-30 slides.
 
 Rules:
 - Each slide must use one of the available layouts
-- Content must be factually accurate; use research results for specific facts
-- Mark uncertain information as "Not yet published" or "To be verified"
-- Include source annotations for factual claims
+- Factual claims (deadlines, tuition, fees, requirements, policies) must be verified with the web_search tool before being stated; do not rely on memory for specific numbers or dates
+- After searching, cite the source: put the source URL or official page name into the slide's source_notes field for every factual claim
+- Information that is not yet published must be marked explicitly as "Not yet published"; never guess from past years
 - Do not pad with repetition or sentence splitting
-- Maintain a coherent narrative arc"""
+- Maintain a coherent narrative arc
+- Write content in Chinese (the audience is Chinese-speaking), keep layout_id values in English"""
 
 
 class ContentGenerator:
@@ -25,17 +24,12 @@ class ContentGenerator:
         topic: str,
         audience: str,
         outline: Outline,
-        research: List[ResearchResult],
         layouts: TemplateRegistry,
     ) -> Presentation:
-        user_prompt = self._build_prompt(topic, audience, outline, research, layouts)
-        return self.llm_client.chat(GENERATOR_SYSTEM, user_prompt, Presentation)
+        user_prompt = self._build_prompt(topic, audience, outline, layouts)
+        return self.llm_client.chat(GENERATOR_SYSTEM, user_prompt, Presentation, use_search=True)
 
-    def _build_prompt(self, topic, audience, outline, research, layouts):
-        research_text = "\n".join(
-            f"- {r.entity} {r.attribute}: {r.value} (confidence: {r.confidence}, source: {r.source_url})"
-            for r in research
-        )
+    def _build_prompt(self, topic, audience, outline, layouts):
         layout_text = "\n".join(f"- {lid}" for lid in layouts.list_layouts())
         sections_text = "\n".join(
             f"- {s.section_title} ({s.pages} pages): {', '.join(s.key_points)}"
@@ -51,7 +45,4 @@ Planned sections:
 Available layouts:
 {layout_text}
 
-Research results:
-{research_text}
-
-Generate the full presentation."""
+Generate the full presentation. Use web_search to verify factual claims, and cite sources in source_notes."""

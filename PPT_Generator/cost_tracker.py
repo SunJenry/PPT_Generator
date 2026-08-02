@@ -2,6 +2,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict
 
+# DeepSeek v4-flash pricing, RMB per 1k tokens (off-peak)
+PROMPT_COST_PER_1K = 0.001  # ¥1 per 1M input tokens (cache miss)
+COMPLETION_COST_PER_1K = 0.002  # ¥2 per 1M output tokens
+
 
 @dataclass
 class CostTracker:
@@ -23,9 +27,11 @@ class CostTracker:
 
     def report(self) -> Dict:
         elapsed = time.time() - self.start_time
-        # Approximate RMB costs (kimi-k2.6 prompt ~0.0015/1k, completion ~0.006/1k; Tavily basic ~0.025/search)
-        llm_cost = (self.llm_prompt_tokens * 0.0015 + self.llm_completion_tokens * 0.006) / 1000
-        search_cost = self.search_calls * 0.025
+        llm_cost = (
+            self.llm_prompt_tokens * PROMPT_COST_PER_1K
+            + self.llm_completion_tokens * COMPLETION_COST_PER_1K
+        ) / 1000
+        search_cost = self.search_calls * 0.01
         image_cost = self.image_calls * 0.01
         total = llm_cost + search_cost + image_cost
         return {

@@ -4,7 +4,7 @@ import pytest
 
 from PPT_Generator.cost_tracker import CostTracker
 from PPT_Generator.llm_client import LLMClient
-from PPT_Generator.models import FactQuery
+from PPT_Generator.models import Outline
 
 
 def _mock_settings():
@@ -36,33 +36,33 @@ def test_llm_client_parses_plain_json():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_client.responses.create.return_value = _make_completion(
-            output_text='{"entity": "Test", "attributes": ["a"]}'
+            output_text='{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}'
         )
 
-        result = client.chat("system", "user", FactQuery)
-        assert result.entity == "Test"
-        assert result.attributes == ["a"]
+        result = client.chat("system", "user", Outline)
+        assert result.narrative_arc == "arc"
+        assert result.sections[0].section_title == "Intro"
 
 
 def test_llm_client_parses_json_with_markdown_fence():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_client.responses.create.return_value = _make_completion(
-            output_text='```json\n{"entity": "Test", "attributes": ["a"]}\n```'
+            output_text='```json\n{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}\n```'
         )
 
-        result = client.chat("system", "user", FactQuery)
-        assert result.entity == "Test"
+        result = client.chat("system", "user", Outline)
+        assert result.narrative_arc == "arc"
 
 
 def test_llm_client_passes_web_search_tool_when_requested():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_client.responses.create.return_value = _make_completion(
-            output_text='{"entity": "Test", "attributes": ["a"]}'
+            output_text='{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}'
         )
 
-        client.chat("system", "user", FactQuery, use_search=True)
+        client.chat("system", "user", Outline, use_search=True)
         call_kwargs = mock_client.responses.create.call_args.kwargs
         assert call_kwargs["tools"] == [{"type": "web_search"}]
 
@@ -71,10 +71,10 @@ def test_llm_client_omits_web_search_tool_by_default():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_client.responses.create.return_value = _make_completion(
-            output_text='{"entity": "Test", "attributes": ["a"]}'
+            output_text='{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}'
         )
 
-        client.chat("system", "user", FactQuery)
+        client.chat("system", "user", Outline)
         call_kwargs = mock_client.responses.create.call_args.kwargs
         assert "tools" not in call_kwargs
 
@@ -83,10 +83,10 @@ def test_llm_client_records_usage():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_client.responses.create.return_value = _make_completion(
-            output_text='{"entity": "Test", "attributes": ["a"]}', input_tokens=10, output_tokens=5
+            output_text='{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}', input_tokens=10, output_tokens=5
         )
 
-        client.chat("system", "user", FactQuery)
+        client.chat("system", "user", Outline)
         assert client.cost_tracker.llm_prompt_tokens == 10
         assert client.cost_tracker.llm_completion_tokens == 5
 
@@ -97,7 +97,7 @@ def test_llm_client_invalid_json_raises_runtime_error():
         mock_client.responses.create.return_value = _make_completion(output_text="not json at all")
 
         with pytest.raises(RuntimeError, match="did not produce valid structured output"):
-            client.chat("system", "user", FactQuery)
+            client.chat("system", "user", Outline)
 
 
 def test_llm_client_empty_output_raises_runtime_error():
@@ -106,19 +106,19 @@ def test_llm_client_empty_output_raises_runtime_error():
         mock_client.responses.create.return_value = _make_completion(output_text="")
 
         with pytest.raises(RuntimeError, match="did not produce valid structured output"):
-            client.chat("system", "user", FactQuery)
+            client.chat("system", "user", Outline)
 
 
 def test_llm_client_missing_usage_raises_runtime_error():
     with patch("PPT_Generator.llm_client.OpenAI") as mock_openai_class:
         client, mock_client = _make_client(mock_openai_class)
         mock_completion = MagicMock()
-        mock_completion.output_text = '{"entity": "Test", "attributes": ["a"]}'
+        mock_completion.output_text = '{"narrative_arc": "arc", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}'
         mock_completion.usage = None
         mock_client.responses.create.return_value = mock_completion
 
         with pytest.raises(RuntimeError, match="missing usage"):
-            client.chat("system", "user", FactQuery)
+            client.chat("system", "user", Outline)
 
 
 def test_llm_client_retries_on_transient_error_then_succeeds():
@@ -133,12 +133,12 @@ def test_llm_client_retries_on_transient_error_then_succeeds():
                 from openai import APIConnectionError
 
                 raise APIConnectionError(message="connection failed", request=MagicMock())
-            return _make_completion(output_text='{"entity": "Retry", "attributes": ["b"]}')
+            return _make_completion(output_text='{"narrative_arc": "retry", "sections": [{"section_title": "Intro", "pages": 1, "key_points": ["a"]}]}')
 
         mock_client.responses.create.side_effect = flaky_create
 
-        result = client.chat("system", "user", FactQuery)
-        assert result.entity == "Retry"
+        result = client.chat("system", "user", Outline)
+        assert result.narrative_arc == "retry"
         assert call_count == 2
 
 
