@@ -261,28 +261,28 @@ def draw_slide_title(
     slide: PptxSlide,
     title: str,
     y: int = TITLE_Y,
-    font_size=SIZE_SLIDE_TITLE,
+    start_font_size=SIZE_SLIDE_TITLE,
+    min_font_size=Pt(18),
     color=PRIMARY,
 ) -> int:
-    """Draw the slide title at the given Y position.
+    """Draw the slide title — always single-line via auto-shrink.
 
     Returns the Y position immediately below the title (for body content).
-    The textbox height is calculated dynamically based on text length and
-    font size to prevent overflow when the title wraps to multiple lines.
+    Font size is reduced in 1pt steps until the text fits on one line.
+    Title height stays fixed at 0.9" so body content follows predictably.
     """
-    text_height = estimate_text_height(title, font_size.pt, CONTENT_WIDTH_INCHES)
-    # Minimum 1.0" for single line, more for multi-line titles
-    box_height = max(text_height, Inches(1.0))
+    TITLE_BOX_HEIGHT = Inches(0.9)
 
-    add_textbox(
+    add_fitted_textbox(
         slide,
-        SAFE_LEFT, y, CONTENT_WIDTH, box_height,
+        SAFE_LEFT, y, CONTENT_WIDTH, TITLE_BOX_HEIGHT,
         text=title,
-        font_size=font_size,
+        start_font_size=start_font_size,
+        min_font_size=min_font_size,
         color=color,
         bold=True,
     )
-    return y + box_height + Inches(0.4)  # ample gap before body content
+    return y + TITLE_BOX_HEIGHT + Inches(0.25)
 
 
 def draw_bullet_body(
@@ -396,3 +396,76 @@ def add_fitted_textbox(
         alignment=alignment,
     )
     return actual_size
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Overlap detection
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _shape_bounds(shape) -> tuple:
+    """Return (left, top, right, bottom) in EMU for a shape."""
+    l = shape.left or 0
+    t = shape.top or 0
+    w = shape.width or 0
+    h = shape.height or 0
+    return (l, t, l + w, t + h)
+
+
+def _bounds_overlap(a: tuple, b: tuple) -> bool:
+    """True if two bounding boxes overlap (share any area)."""
+    return not (a[2] <= b[0] or b[2] <= a[0] or a[3] <= b[1] or b[3] <= a[1])
+
+
+def detect_overlaps(prs_slide) -> list:
+    """Check a slide for overlapping text-containing shapes.
+
+    Returns a list of (shape1, shape2) pairs that overlap.
+    Decorative shapes (lines, circles without text) are ignored.
+    Background rectangles covering the full slide are ignored.
+    """
+    # Collect text-bearing shapes
+    text_shapes = []
+    for shape in prs_slide.shapes:
+        # Full-slide backgrounds are intentional overlaps, skip them
+        w = shape.width or 0
+        h = shape.height or 0
+        t = shape.top or 0
+        if w > Inches(12) and h > Inches(7):
+            continue
+        # Skip footer elements — they're intentionally at the bottom
+        if t > FOOTER_LINE_Y - Inches(0.1):
+            continue
+        # Only check shapes that contain text
+        if shape.has_text_frame and shape.text_frame.text.strip():
+            text_shapes.append(shape)
+
+    overlaps = []
+    for i in range(len(text_shapes)):
+        bi = _shape_bounds(text_shapes[i])
+        for j in range(i + 1, len(text_shapes)):
+            bj = _shape_bounds(text_shapes[j])
+            if _bounds_overlap(bi, bj):
+                overlaps.append((text_shapes[i], text_shapes[j]))
+
+    return overlaps
+
+
+def check_and_report_overlaps(prs_slide, page_number: int) -> int:
+    """Detect overlaps on a slide and print warnings.
+
+    Returns the number of overlap pairs found.
+    """
+    overlaps = detect_overlaps(prs_slide)
+    if overlaps:
+        import sys
+
+        for a, b in overlaps:
+            atext = a.text_frame.text[:40] if a.has_text_frame else "?"
+            btext = b.text_frame.text[:40] if b.has_text_frame else "?"
+            print(
+                f"       ⚠  Slide {page_number}: overlap detected between "
+                f"\"{atext}\" and \"{btext}\"",
+                file=sys.stderr,
+            )
+    return len(overlaps)

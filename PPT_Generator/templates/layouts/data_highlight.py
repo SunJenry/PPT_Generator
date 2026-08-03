@@ -46,11 +46,11 @@ class DataHighlightLayout(BaseLayout):
         # ── Decorative circle ──
         draw_decorative_circle(prs_slide, Inches(9.0), Inches(2.0), Inches(3.0), SECONDARY)
 
-        # ── Big highlight number (auto-shrink to stay single-line) ──
+        # ── Big highlight number (auto-shrink, limited width to avoid notes overlap) ──
         number_text = slide.highlight_number or "—"
         number_y = body_y + Inches(0.3)
         add_fitted_textbox(
-            prs_slide, SAFE_LEFT + Inches(1.0), number_y, Inches(7), Inches(1.5),
+            prs_slide, SAFE_LEFT + Inches(1.0), number_y, Inches(5.5), Inches(1.5),
             text=number_text,
             start_font_size=SIZE_HIGHLIGHT,
             min_font_size=Pt(24),
@@ -62,15 +62,17 @@ class DataHighlightLayout(BaseLayout):
         if slide.highlight_label:
             label_y = number_y + Inches(1.3)
             add_textbox(
-                prs_slide, SAFE_LEFT + Inches(1.0), label_y, Inches(7), Inches(0.6),
+                prs_slide, SAFE_LEFT + Inches(1.0), label_y, Inches(5.5), Inches(0.6),
                 text=slide.highlight_label,
                 font_size=SIZE_SMALL, color=TEXT_MUTED,
             )
 
-        # ── Context/notes on the right ──
+        # ── Context/notes on the right (below number to avoid overlap) ──
         if slide.notes:
+            notes_y = max(number_y + Inches(1.8), CONTENT_BOTTOM - Inches(1.3))
             add_textbox(
-                prs_slide, Inches(8.5), CONTENT_BOTTOM - Inches(1.3), Inches(4.0), Inches(1.2),
+                prs_slide, Inches(8.0), notes_y, Inches(4.5),
+                min(Inches(1.2), CONTENT_BOTTOM - notes_y),
                 text=truncate_text(slide.notes, 200),
                 font_size=Pt(13), color=TEXT_MAIN,
             )

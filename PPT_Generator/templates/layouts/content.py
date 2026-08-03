@@ -28,16 +28,19 @@ class ContentLayout(BaseLayout):
         # ── Fixed-position elements (always safe) ──
         draw_footer(prs_slide, slide.page_number, total_pages)
 
+        # Reserve space for source notes if present
+        body_bottom = CONTENT_BOTTOM - Inches(0.35) if slide.source_notes else CONTENT_BOTTOM
+
         # ── Flow chain: each step returns where the next should start ──
         y = draw_header(prs_slide, section_title=slide.section_title)
         y = draw_slide_title(prs_slide, slide.title, y=y)
-        y = draw_bullet_body(prs_slide, slide.bullets, start_y=y, max_y=CONTENT_BOTTOM, max_bullets=MAX_BULLETS)
+        draw_bullet_body(prs_slide, slide.bullets, start_y=y, max_y=body_bottom, max_bullets=MAX_BULLETS)
 
-        # ── Source notes at the very bottom of content area ──
+        # ── Source notes below bullets ──
         if slide.source_notes:
             add_textbox(
                 prs_slide,
-                SAFE_LEFT, CONTENT_BOTTOM - Inches(0.25), CONTENT_WIDTH, Inches(0.25),
+                SAFE_LEFT, body_bottom + Inches(0.05), CONTENT_WIDTH, Inches(0.25),
                 text=f"来源: {slide.source_notes[0]}",
                 font_size=Pt(9),
                 color=TEXT_MUTED,

@@ -33,19 +33,20 @@ class QuoteLayout(BaseLayout):
         # ── Large decorative quotation mark ──
         quote_y = TITLE_Y + Inches(0.3)
         add_textbox(
-            prs_slide, SAFE_LEFT, quote_y, Inches(1.5), Inches(1.0),
+            prs_slide, SAFE_LEFT, quote_y, Inches(0.8), Inches(1.0),
             text='"',
             font_size=Pt(72), color=ACCENT, bold=True,
         )
 
-        # ── Quote text (dynamic height) ──
+        # ── Quote text (dynamic height, indented right of quote mark) ──
         quote = slide.quote_text or slide.title
         quote_text_y = quote_y + Inches(0.5)
-        quote_height = estimate_text_height(quote, SIZE_QUOTE.pt, Inches(10.0).inches)
+        quote_width_inches = 10.0
+        quote_height = estimate_text_height(quote, SIZE_QUOTE.pt, quote_width_inches)
         quote_height = max(quote_height, Inches(1.0))
 
         tb, _, _ = add_textbox(
-            prs_slide, SAFE_LEFT + Inches(1.0), quote_text_y, Inches(10.0), quote_height,
+            prs_slide, SAFE_LEFT + Inches(0.8), quote_text_y, Inches(quote_width_inches), quote_height,
             text=truncate_text(quote, 250),
             font_size=SIZE_QUOTE, color=TEXT_MAIN,
         )

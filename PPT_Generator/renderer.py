@@ -7,7 +7,7 @@ import httpx
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches
 
-from PPT_Generator.design import SLIDE_HEIGHT, SLIDE_WIDTH
+from PPT_Generator.design import SLIDE_HEIGHT, SLIDE_WIDTH, check_and_report_overlaps
 from PPT_Generator.image_search import ImageSearchClient
 from PPT_Generator.models import Presentation, Slide
 from PPT_Generator.templates.registry import TemplateRegistry
@@ -25,6 +25,7 @@ class Renderer:
         blank_layout = prs.slide_layouts[6]
 
         total = presentation.total_pages
+        overlap_count = 0
         for i, slide_model in enumerate(presentation.slides, start=1):
             prs_slide = prs.slides.add_slide(blank_layout)
 
@@ -37,9 +38,16 @@ class Renderer:
             if slide_model.image_keyword and self.image_client:
                 self._add_image(prs_slide, slide_model)
 
+            # Check for content overlap
+            n = check_and_report_overlaps(prs_slide, i)
+            overlap_count += n
+
             # Print progress every 5 slides
             if i % 5 == 0 or i == total:
                 print(f"       rendering slide {i}/{total}...")
+
+        if overlap_count > 0:
+            print(f"       ⚠  {overlap_count} overlap(s) detected across all slides", file=sys.stderr)
 
         prs.save(output_path)
 
