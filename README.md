@@ -93,6 +93,13 @@ python -m PPT_Generator.template_builder assets/template.pptx
 
 `examples/` 目录下有 5 个开发集示例。
 
+### 项目文件说明
+
+| 路径 | 作用 |
+|---|---|
+| `assets/template.pptx` | **设计模板预览文件**。由 `template_builder.py` 自动生成，展示全部 10 种布局的设计风格。用户可直接用 PowerPoint/Keynote 打开查看效果，无需实际运行管道。运行 `python -m PPT_Generator.template_builder` 可重新生成。 |
+| `demo/demo1.pptx` ~ `demo5.pptx` | **5 套 Demo 成品**。对应公开开发集的 5 个留学主题，由程序从 `examples/demo{1-5}.json` 全自动生成，未做任何人工编辑。可直接打开查看最终输出质量。每套 Demo 的成本和耗时见下方 [Demo 实测数据](#demo-实测数据)。 |
+
 ### 运行测试
 
 ```bash
