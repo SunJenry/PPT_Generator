@@ -330,3 +330,69 @@ def draw_bullet_body(
 
     # Never exceed max_y
     return min(end_y, max_y - Inches(0.05))
+
+
+def fit_font_to_width(
+    text: str,
+    max_width_inches: float,
+    start_size_pt: float,
+    min_size_pt: float = 10.0,
+    char_factor: float = 0.92,
+) -> float:
+    """Find the largest font size (≤ start_size_pt) that keeps text on one line.
+
+    If text fits at start_size_pt, return that. Otherwise shrink in 1pt
+    increments until the text fits within max_width_inches. Never drops
+    below min_size_pt.
+    """
+    size = start_size_pt
+    while size > min_size_pt:
+        char_width_pt = size * char_factor
+        chars_per_line = max(1, int(max_width_inches * 72 / char_width_pt))
+        if len(text) <= chars_per_line:
+            return size
+        size -= 1.0
+    return min_size_pt
+
+
+def add_fitted_textbox(
+    slide: PptxSlide,
+    left,
+    top,
+    width,
+    height,
+    text: str,
+    start_font_size,
+    min_font_size=Pt(10),
+    font_name: str = BODY_FONT,
+    color=TEXT_MAIN,
+    bold: bool = False,
+    alignment=PP_ALIGN.LEFT,
+) -> float:
+    """Add a textbox with auto-shrunk font size to keep text on one line.
+
+    Returns the actual font size used (in Pt). If the text needs to shrink
+    below min_font_size, it is truncated with an ellipsis instead.
+    """
+    width_inches = width / 914400.0  # EMU → inches conversion
+
+    actual_pt = fit_font_to_width(
+        text, width_inches, start_font_size.pt, min_font_size.pt
+    )
+    actual_size = Pt(int(actual_pt))
+
+    # If at minimum size and still doesn't fit, truncate
+    display_text = text
+    if actual_pt <= min_font_size.pt:
+        display_text = truncate_text(text, int(width_inches * 72 / (min_font_size.pt * 0.92)))
+
+    add_textbox(
+        slide, left, top, width, height,
+        text=display_text,
+        font_size=actual_size,
+        color=color,
+        bold=bold,
+        font_name=font_name,
+        alignment=alignment,
+    )
+    return actual_size

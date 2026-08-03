@@ -1,4 +1,4 @@
-"""Data highlight layout — big number / key statistic."""
+"""Data highlight layout — big number / key statistic with auto-shrink."""
 
 from pptx.slide import Slide as PptxSlide
 from pptx.util import Inches, Pt
@@ -13,6 +13,7 @@ from PPT_Generator.design import (
     SIZE_SMALL,
     TEXT_MAIN,
     TEXT_MUTED,
+    add_fitted_textbox,
     add_textbox,
     draw_decorative_circle,
     draw_footer,
@@ -45,13 +46,16 @@ class DataHighlightLayout(BaseLayout):
         # ── Decorative circle ──
         draw_decorative_circle(prs_slide, Inches(9.0), Inches(2.0), Inches(3.0), SECONDARY)
 
-        # ── Big highlight number ──
+        # ── Big highlight number (auto-shrink to stay single-line) ──
         number_text = slide.highlight_number or "—"
         number_y = body_y + Inches(0.3)
-        add_textbox(
+        add_fitted_textbox(
             prs_slide, SAFE_LEFT + Inches(1.0), number_y, Inches(7), Inches(1.5),
-            text=truncate_text(number_text, 30),
-            font_size=SIZE_HIGHLIGHT, color=ACCENT, bold=True,
+            text=number_text,
+            start_font_size=SIZE_HIGHLIGHT,
+            min_font_size=Pt(24),
+            color=ACCENT,
+            bold=True,
         )
 
         # ── Label below the number ──

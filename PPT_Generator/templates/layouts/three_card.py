@@ -12,7 +12,7 @@ from PPT_Generator.design import (
     PRIMARY,
     SAFE_LEFT,
     TEXT_MAIN,
-    add_textbox,
+    add_fitted_textbox,
     draw_footer,
     draw_header,
     draw_slide_title,
@@ -57,14 +57,17 @@ class ThreeCardLayout(BaseLayout):
             accent_bar.fill.fore_color.rgb = ACCENT
             accent_bar.line.fill.background()
 
-            # Card title
+            # Card title (auto-shrink to stay single-line)
             card_title = card.get("title", f"要点 {idx + 1}")
-            add_textbox(
+            add_fitted_textbox(
                 prs_slide,
                 card_left + Inches(0.25), card_top + Inches(0.3),
                 CARD_WIDTH - Inches(0.5), Inches(0.6),
-                text=truncate_text(card_title, 30),
-                font_size=Pt(20), color=PRIMARY, bold=True,
+                text=card_title,
+                start_font_size=Pt(20),
+                min_font_size=Pt(12),
+                color=PRIMARY,
+                bold=True,
             )
 
             # Card body
