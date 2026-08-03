@@ -62,19 +62,22 @@ pytest tests/test_pipeline.py
 # Run a specific test function
 pytest tests/test_pipeline.py::test_pipeline_runs_end_to_end
 
+# Generate design template preview
+python -m PPT_Generator.template_builder
+
 # Install additional dev requirements
 pip install -r dev-requirements.txt
 ```
 
-See `examples/sample_input.json` for the input format. A sample end-to-end run (mocked external services) lives in `tests/test_integration.py`.
+See `examples/demo1.json` (or any of `demo{1-5}.json`) for the input format. A sample end-to-end run (mocked external services) lives in `tests/test_integration.py`.
 
 ## Architecture
 
 The package implements a four-stage pipeline, orchestrated by `Pipeline` (`PPT_Generator/pipeline.py`):
 
 1. **Planner** (`planner.py`): LLM generates a narrative outline (`Outline` with sections) from `(topic, brief, audience)`.
-2. **Content Generator** (`content_generator.py`): LLM fills the outline into a `Presentation` of 25–30 `Slide` objects; the call passes DeepSeek's built-in `web_search` tool so the model verifies factual claims itself and cites source URLs in `source_notes`.
-3. **Validator** (`validator.py`): LLM checks page count (25–30), coherence, and layout fit; fixes invalid layout IDs locally.
+2. **Content Generator** (`content_generator.py`): LLM fills the outline into a `Presentation` of 25–30 `Slide` objects, receiving the outline, topic, audience, and available layout list from `TemplateRegistry`. The call uses the OpenAI Responses API `web_search` tool (supported by DeepSeek's API) so the model verifies factual claims itself and cites source URLs in `source_notes`.
+3. **Validator** (`validator.py`): First fixes invalid layout IDs locally (defaults to `content`). If page count is within 25–30, returns immediately without any LLM call. Only invokes LLM to fix page count when outside the target range.
 4. **Renderer** (`renderer.py`): Maps structured content to template layouts via `python-pptx`, optionally fetching images from Unsplash.
 
 Supporting modules:
@@ -87,10 +90,10 @@ Supporting modules:
 - `cost_tracker.py`: Accumulates LLM tokens and image call counts, estimates RMB cost using DeepSeek v4-flash pricing.
 - `cli.py`: `python -m PPT_Generator input.json output.pptx`.
 
-Configuration is environment-driven (`DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, optional `UNSPLASH_ACCESS_KEY`), loaded by `config.py`. Legacy Ark/Tavily settings remain in `config.py` as unused fallbacks. External call failures are logged to stderr; the pipeline degrades gracefully (validation failures continue with un-validated data).
+Configuration is environment-driven (`DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL`, optional `UNSPLASH_ACCESS_KEY`), loaded by `config.py`. Legacy Ark/Tavily settings remain in `config.py` as unused fallbacks. External call failures are logged to stderr. Only the Validator stage degrades gracefully (continues with un-validated data); Planner, ContentGenerator, and Renderer failures halt the pipeline.
 
 ## Reference Materials
 
 - `招聘考题-PPT生成器.md`: Full assessment specification, including 5 public development topics, detailed scoring rubrics, and submission requirements.
 - `pyproject.toml`: Package metadata and build configuration.
-- `dev-requirements.txt`: Development-only dependencies (pytest, setuptools, wheel).
+- `dev-requirements.txt`: Development-only dependencies (pytest, pytest-asyncio, respx, setuptools, wheel).
