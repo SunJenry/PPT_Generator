@@ -23,7 +23,7 @@
 
 ### 2. PDF 转 Markdown，让 AI 充分理解需求
 
-新建 Python 脚本，将考题 PDF 转换为 Markdown 格式。PDF 对 AI 来说不如纯文本好解析，转成 Markdown 后 AI 能更准确地理解评分标准、约束条件和细节要求，避免遗漏关键信息。
+新建 Python 工程。将考题 PDF 转换为 Markdown 格式。PDF 对 AI 来说不如纯文本好解析，转成 Markdown 后 AI 能更准确地理解评分标准、约束条件和细节要求，避免遗漏关键信息。
 
 ### 3. AI 给出完整实现方案
 
