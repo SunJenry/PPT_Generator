@@ -9,6 +9,7 @@ def test_cost_tracker_accumulates():
     report = ct.report()
     assert report["llm_prompt_tokens"] == 1000
     assert report["llm_completion_tokens"] == 500
+    assert report["llm_call_count"] == 1
     assert report["search_calls"] == 1
     assert report["image_calls"] == 1
     assert report["estimated_cost_rmb"] > 0

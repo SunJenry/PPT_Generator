@@ -1,25 +1,46 @@
-from pptx.dml.color import RGBColor
-from pptx.util import Inches, Pt
+"""Re-exported from PPT_Generator.design for backward compatibility."""
 
+from PPT_Generator.design import (  # noqa: F401
+    ACCENT,
+    BACKGROUND,
+    DIVIDER,
+    HEADER_BG,
+    LIGHT_BG,
+    PRIMARY,
+    SECONDARY,
+    SUCCESS,
+    TEXT_MAIN,
+    TEXT_MUTED,
+    WARNING,
+    WHITE,
+    BODY_FONT,
+    TITLE_FONT,
+    WESTERN_FONT,
+    SAFE_LEFT,
+    SAFE_RIGHT,
+    SAFE_TOP,
+    SAFE_BOTTOM,
+    CONTENT_WIDTH,
+    CONTENT_MAX_HEIGHT,
+    SLIDE_HEIGHT,
+    SLIDE_WIDTH,
+)
+
+# Legacy aliases
 COLORS = {
-    "primary": RGBColor(0x1E, 0x3A, 0x5F),
-    "accent": RGBColor(0x4A, 0x90, 0xD9),
-    "background": RGBColor(0xFF, 0xFF, 0xFF),
-    "text": RGBColor(0x33, 0x33, 0x33),
-    "muted": RGBColor(0x66, 0x66, 0x66),
+    "primary": PRIMARY,
+    "accent": ACCENT,
+    "background": BACKGROUND,
+    "text": TEXT_MAIN,
+    "muted": TEXT_MUTED,
 }
-
 FONTS = {
-    "chinese": "Microsoft YaHei",
-    "western": "Arial",
+    "chinese": BODY_FONT,
+    "western": WESTERN_FONT,
 }
-
 MARGINS = {
-    "left": Inches(0.8),
-    "right": Inches(0.8),
-    "top": Inches(0.6),
-    "bottom": Inches(0.6),
+    "left": SAFE_LEFT,
+    "right": SAFE_RIGHT,
+    "top": SAFE_TOP,
+    "bottom": SAFE_BOTTOM,
 }
-
-SLIDE_WIDTH = Inches(13.333)
-SLIDE_HEIGHT = Inches(7.5)

@@ -9,7 +9,7 @@ class FakeLLMClient:
             topic="T",
             audience="A",
             narrative_arc="arc",
-            slides=[Slide(page_number=i, layout_id="bullet_focus", title=f"Slide {i}") for i in range(1, 26)],
+            slides=[Slide(page_number=i, layout_id="content", title=f"Slide {i}") for i in range(1, 26)],
             total_pages=25,
             sources=[],
         )
@@ -27,4 +27,4 @@ def test_validator_fixes_invalid_layout():
         sources=[],
     )
     result = validator.validate(pres, layouts)
-    assert result.slides[0].layout_id == "bullet_focus"
+    assert result.slides[0].layout_id == "content"

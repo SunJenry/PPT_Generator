@@ -29,8 +29,15 @@ def main(argv=None):
         print(f"Error: PPT generation failed: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Generated {report['total_pages']} slides to {report['output_path']}")
-    print(f"Estimated cost: ¥{report['estimated_cost_rmb']}, elapsed: {report['elapsed_seconds']:.1f}s")
+    print("=" * 60)
+    print(f"  Output:      {report['output_path']}")
+    print(f"  Slides:      {report['total_pages']} pages")
+    print(f"  Cost:        ¥{report['estimated_cost_rmb']:.4f}")
+    print(f"  Time:        {report['elapsed_seconds']:.1f}s ({report['elapsed_seconds']/report['total_pages']:.1f}s/slide)")
+    print(f"  LLM calls:   {report['llm_call_count']}")
+    print(f"  Tokens:      {report['llm_prompt_tokens']:,} in / {report['llm_completion_tokens']:,} out")
+    print(f"  Images:      {report['image_calls']} fetched")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ class FakeLLMClient:
             topic="T",
             audience="A",
             narrative_arc="arc",
-            slides=[Slide(page_number=1, layout_id="title", title="Hello")],
+            slides=[Slide(page_number=1, layout_id="title_slide", title="Hello")],
             total_pages=1,
             sources=["https://example.com"],
         )

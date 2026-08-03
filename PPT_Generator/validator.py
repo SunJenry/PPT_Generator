@@ -22,7 +22,7 @@ class Validator:
         cleaned = presentation.model_copy(deep=True)
         for i, slide in enumerate(cleaned.slides, start=1):
             if slide.layout_id not in valid_layouts:
-                slide.layout_id = "bullet_focus"
+                slide.layout_id = "content"
             slide.page_number = i
         cleaned.total_pages = len(cleaned.slides)
 

@@ -78,8 +78,10 @@ The package implements a four-stage pipeline, orchestrated by `Pipeline` (`PPT_G
 4. **Renderer** (`renderer.py`): Maps structured content to template layouts via `python-pptx`, optionally fetching images from Unsplash.
 
 Supporting modules:
-- `models.py`: Pydantic contracts (`Outline`, `Slide`, `Presentation`) shared across stages.
-- `templates/`: Constrained template system — `registry.py` registers layouts, `styles.py` defines the design system (colors, fonts, slide dimensions), `layouts/` holds per-layout renderers. Currently implemented: `title`, `bullet_focus`; the remaining planned layouts (`section_divider`, `two_column`, `three_card`, `timeline`, `comparison_table`, `data_highlight`, `quote`, `closing`) are follow-up work.
+- `models.py`: Pydantic contracts (`Outline`, `Slide`, `Presentation`) shared across stages. `Slide` supports 10 layout types via dedicated fields (`bullets`, `cards`, `timeline_items`, `table`, `highlight_number`, `quote_text`, etc.).
+- `design.py`: Centralized design system — all colors, fonts, spacing, safe areas, and common drawing helpers (`draw_header`, `draw_footer`, `add_textbox`, etc.). The single source of truth for visual consistency.
+- `templates/`: Layout system — `base.py` (abstract `BaseLayout`), `registry.py` (maps `layout_id` → layout instance), `styles.py` (backward-compat re-exports from `design.py`), `layouts/` holds 10 layout renderers: `title_slide`, `section_divider`, `content`, `two_column`, `three_card`, `timeline`, `comparison_table`, `data_highlight`, `quote`, `closing`.
+- `template_builder.py`: Generates `assets/template.pptx` — a standalone reference file showcasing all 10 layouts with sample content. Users can open this in PowerPoint to preview the design. Run via `python -m PPT_Generator.template_builder`.
 - `llm_client.py`: OpenAI Responses API client for DeepSeek (`deepseek-v4-flash`) with tenacity retries, optional `web_search` tool, JSON Schema injection, and markdown-fence stripping.
 - `image_search.py`: Unsplash client with retries.
 - `cost_tracker.py`: Accumulates LLM tokens and image call counts, estimates RMB cost using DeepSeek v4-flash pricing.

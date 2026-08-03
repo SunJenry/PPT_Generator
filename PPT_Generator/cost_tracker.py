@@ -11,6 +11,7 @@ COMPLETION_COST_PER_1K = 0.002  # ¥2 per 1M output tokens
 class CostTracker:
     llm_prompt_tokens: int = 0
     llm_completion_tokens: int = 0
+    llm_call_count: int = 0
     search_calls: int = 0
     image_calls: int = 0
     start_time: float = field(default_factory=time.time)
@@ -18,6 +19,7 @@ class CostTracker:
     def add_llm_call(self, prompt_tokens: int, completion_tokens: int) -> None:
         self.llm_prompt_tokens += prompt_tokens
         self.llm_completion_tokens += completion_tokens
+        self.llm_call_count += 1
 
     def add_search_call(self) -> None:
         self.search_calls += 1
@@ -38,6 +40,7 @@ class CostTracker:
             "elapsed_seconds": elapsed,
             "llm_prompt_tokens": self.llm_prompt_tokens,
             "llm_completion_tokens": self.llm_completion_tokens,
+            "llm_call_count": self.llm_call_count,
             "search_calls": self.search_calls,
             "image_calls": self.image_calls,
             "estimated_cost_rmb": round(total, 4),

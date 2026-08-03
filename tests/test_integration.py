@@ -16,12 +16,12 @@ def test_full_pipeline_creates_pptx(mock_image, mock_llm, tmp_path):
         ),
         Presentation(
             topic="T", audience="A", narrative_arc="arc",
-            slides=[Slide(page_number=i, layout_id="title" if i == 1 else "bullet_focus", title=f"Slide {i}") for i in range(1, 26)],
+            slides=[Slide(page_number=i, layout_id="title_slide" if i == 1 else "content", title=f"Slide {i}") for i in range(1, 26)],
             total_pages=25, sources=["https://example.com"],
         ),
         Presentation(
             topic="T", audience="A", narrative_arc="arc",
-            slides=[Slide(page_number=i, layout_id="title" if i == 1 else "bullet_focus", title=f"Slide {i}") for i in range(1, 26)],
+            slides=[Slide(page_number=i, layout_id="title_slide" if i == 1 else "content", title=f"Slide {i}") for i in range(1, 26)],
             total_pages=25, sources=["https://example.com"],
         ),
     ]

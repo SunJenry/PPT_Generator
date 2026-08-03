@@ -7,10 +7,10 @@ import httpx
 from pptx import Presentation as PptxPresentation
 from pptx.util import Inches
 
+from PPT_Generator.design import SLIDE_HEIGHT, SLIDE_WIDTH
 from PPT_Generator.image_search import ImageSearchClient
 from PPT_Generator.models import Presentation, Slide
 from PPT_Generator.templates.registry import TemplateRegistry
-from PPT_Generator.templates.styles import SLIDE_WIDTH, SLIDE_HEIGHT
 
 
 class Renderer:
@@ -24,12 +24,22 @@ class Renderer:
         prs.slide_height = SLIDE_HEIGHT
         blank_layout = prs.slide_layouts[6]
 
-        for slide_model in presentation.slides:
+        total = presentation.total_pages
+        for i, slide_model in enumerate(presentation.slides, start=1):
             prs_slide = prs.slides.add_slide(blank_layout)
+
+            # Ensure page_number is correct and pass total for footer
+            slide_model.page_number = i
+
             layout = self.templates.get(slide_model.layout_id)
-            layout.render(slide_model, prs_slide)
+            layout.render(slide_model, prs_slide, total_pages=total)
+
             if slide_model.image_keyword and self.image_client:
                 self._add_image(prs_slide, slide_model)
+
+            # Print progress every 5 slides
+            if i % 5 == 0 or i == total:
+                print(f"       rendering slide {i}/{total}...")
 
         prs.save(output_path)
 

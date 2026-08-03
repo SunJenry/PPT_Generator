@@ -13,12 +13,12 @@ def test_pipeline_runs_end_to_end(mock_renderer, mock_image, mock_llm, tmp_path)
         Outline(narrative_arc="arc", sections=[SectionPlan(section_title="Intro", pages=1, key_points=["a"])]),
         Presentation(
             topic="T", audience="A", narrative_arc="arc",
-            slides=[Slide(page_number=1, layout_id="title", title="Hello")],
+            slides=[Slide(page_number=1, layout_id="title_slide", title="Hello")],
             total_pages=1, sources=[],
         ),
         Presentation(
             topic="T", audience="A", narrative_arc="arc",
-            slides=[Slide(page_number=1, layout_id="title", title="Hello")],
+            slides=[Slide(page_number=1, layout_id="title_slide", title="Hello")],
             total_pages=1, sources=[],
         ),
     ]

@@ -19,11 +19,51 @@ _FENCE_RE = re.compile(r"^```[a-zA-Z]*\s*|\s*```$")
 
 
 def _extract_json(content: str) -> str:
-    """Extract a JSON payload from LLM output, stripping Markdown code fences if present."""
+    """Robustly extract a JSON payload from LLM output.
+
+    Handles these cases (in order):
+    1. Pure JSON starting with {
+    2. Markdown-fenced JSON (```json ... ```)
+    3. JSON object embedded in natural language text (brace-counting)
+    """
     text = content.strip()
+
+    # Case 1-2: markdown-fenced or pure JSON
     if text.startswith("```"):
         text = _FENCE_RE.sub("", text).strip()
-    return text
+    if text.startswith("{"):
+        return text
+
+    # Case 3: JSON somewhere in the middle of natural language text.
+    # Find the first '{' and count braces to find the matching '}'.
+    start = text.find("{")
+    if start == -1:
+        return text  # no JSON at all
+
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+
+    return text  # unbalanced — return original
 
 
 class LLMClient:
@@ -60,10 +100,16 @@ class LLMClient:
             "model": self.model,
             "instructions": system + schema_hint,
             "input": user,
-            "text": {"format": {"type": "json_object"}},
         }
         if use_search:
             kwargs["tools"] = [{"type": "web_search"}]
+            # web_search uses internal reasoning rounds which consume output
+            # tokens. Reserve ample budget so the JSON doesn't get truncated.
+            kwargs["max_output_tokens"] = 32768
+            # NOTE: json_object format conflicts with web_search on DeepSeek.
+            # We rely on prompt instructions for JSON output instead.
+        else:
+            kwargs["text"] = {"format": {"type": "json_object"}}
 
         completion = self.client.responses.create(**kwargs)
 
@@ -75,8 +121,35 @@ class LLMClient:
         if not completion.output_text:
             raise RuntimeError("LLM did not produce valid structured output")
 
+        raw_text = completion.output_text
+        extracted = _extract_json(raw_text)
+
+        # Debug: save failed output for diagnosis
+        if not extracted.startswith("{"):
+            try:
+                with open("/tmp/llm_debug_fail.txt", "w", encoding="utf-8") as f:
+                    f.write(f"=== Raw output ({len(raw_text)} chars) ===\n")
+                    f.write(raw_text[:3000])
+                    f.write("\n\n=== Extracted ===\n")
+                    f.write(extracted[:2000])
+            except OSError:
+                pass
+
         try:
-            data = json.loads(_extract_json(completion.output_text))
+            data = json.loads(extracted)
             return response_format.model_validate(data)
         except (json.JSONDecodeError, ValueError) as exc:
-            raise RuntimeError(f"LLM did not produce valid structured output: {exc}") from exc
+            # Save full raw text on parse failure for inspection
+            try:
+                with open("/tmp/llm_debug_fail.txt", "w", encoding="utf-8") as f:
+                    f.write(f"Parse error: {exc}\n\n")
+                    f.write(f"=== Raw output ({len(raw_text)} chars) ===\n")
+                    f.write(raw_text[:5000])
+                    f.write("\n\n=== Extracted ===\n")
+                    f.write(extracted[:3000])
+            except OSError:
+                pass
+            raise RuntimeError(
+                f"LLM did not produce valid structured output: {exc}. "
+                f"Raw output saved to /tmp/llm_debug_fail.txt"
+            ) from exc
